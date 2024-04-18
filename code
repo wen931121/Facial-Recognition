@@ -1,0 +1,67 @@
+import cv2
+from imutils import face_utils
+
+# 載入 OpenCV 的人臉偵測器
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# 建立人的臉庫
+known_faces = []
+known_names = []
+
+# 載入人的照片
+p_images = []  # 添加更多照片
+
+for image_name in p_images:
+    p_image = cv2.imread(image_name)
+    p_gray = cv2.cvtColor(p_image, cv2.COLOR_BGR2GRAY)
+    known_faces.append(p_gray)
+    known_names.append("")
+
+# 使用 Haar 特徵進行人臉識別
+def detect_face(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    
+    for (x, y, w, h) in faces:
+        roi_gray = gray[y:y+h, x:x+w]
+        
+        # 進行人臉識別
+        name = get_matching_name(roi_gray)
+        if name:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.putText(frame, name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            
+    return frame
+
+# 獲取匹配的姓名
+def get_matching_name(roi_gray):
+    # 對比已知人臉並返回相應的姓名
+    for i in range(len(known_faces)):
+        p_hist = cv2.calcHist([known_faces[i]], [0], None, [256], [0, 256])
+        roi_hist = cv2.calcHist([roi_gray], [0], None, [256], [0, 256])
+        similarity = cv2.compareHist(p_hist, roi_hist, cv2.HISTCMP_CORREL)
+        if similarity > 0.7:  # 您可以嘗試不同的閾值
+            return known_names[i]
+    return ""
+
+# 讀取影片
+cap = cv2.VideoCapture('')
+
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # 進行人臉偵測和識別
+    frame = detect_face(frame)
+
+    # 顯示結果
+    cv2.imshow('Video', frame)
+
+    # 按下 'Esc' 鍵退出
+    if cv2.waitKey(1) == 27:  # ASCII code for 'Esc' key
+        break
+
+# 釋放資源與關閉視窗
+cap.release()
+cv2.destroyAllWindows()
